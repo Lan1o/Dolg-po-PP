@@ -34,7 +34,11 @@ INSTALLED_APPS = [
     'corsheaders',
     'drf_spectacular',
 
-    # local (добавим на следующем шаге)
+    # local
+    'apps.accounts',
+    'apps.catalog',
+    'apps.workflow',
+    'apps.notifications',
 ]
 
 
@@ -148,3 +152,6 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '0.1.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }
+
+# --- Custom user model ---
+AUTH_USER_MODEL = 'accounts.User'
