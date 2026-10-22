@@ -10,6 +10,7 @@ class UserAdmin(BaseUserAdmin):
 
     list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'group_name', 'is_staff')
     list_filter = ('role', 'is_staff', 'is_superuser', 'is_active')
+    search_fields = ('username', 'email', 'first_name', 'last_name')
 
     fieldsets = BaseUserAdmin.fieldsets + (
         ('CampusThesis', {
