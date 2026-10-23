@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from django.http import JsonResponse
 from django.conf import settings
 from django.conf.urls.static import static
@@ -24,6 +24,9 @@ urlpatterns = [
 
     # health
     path('api/health', health, name='health'),
+
+    # auth
+    path('api/auth/', include('apps.accounts.urls')),
 
     # swagger / openapi
     path('api/schema', SpectacularAPIView.as_view(), name='schema'),
