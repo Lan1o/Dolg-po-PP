@@ -11,7 +11,6 @@ from drf_spectacular.views import (
 
 
 def health(request):
-    """Простой health-check для проверки, что API живо."""
     return JsonResponse({
         'status': 'ok',
         'service': 'CampusThesis API',
@@ -21,21 +20,14 @@ def health(request):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-
-    # health
     path('api/health', health, name='health'),
-
-    # auth
     path('api/auth/', include('apps.accounts.urls')),
-
-    # catalog
     path('api/', include('apps.catalog.urls')),
+    path('api/', include('apps.workflow.urls')),
 
-    # swagger / openapi
     path('api/schema', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
 ]
 
-# В DEBUG отдаём media-файлы через Django
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
