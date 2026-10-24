@@ -28,6 +28,9 @@ urlpatterns = [
     # auth
     path('api/auth/', include('apps.accounts.urls')),
 
+    # catalog
+    path('api/', include('apps.catalog.urls')),
+
     # swagger / openapi
     path('api/schema', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
