@@ -2,6 +2,8 @@ from datetime import date, timedelta
 
 from django.db import transaction
 from django.utils import timezone
+from django.http import FileResponse
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -13,7 +15,7 @@ from apps.notifications.services import notify, log_status, log_action
 
 from .models import Application, Thesis, Stage, File, Review
 from .serializers import (
-    ApplicationSerializer, ThesisSerializer, StageSerializer
+    ApplicationSerializer, ThesisSerializer, StageSerializer, ReviewSerializer
 )
 
 STAGE_ORDER = [
@@ -23,7 +25,6 @@ STAGE_ORDER = [
 
 
 class ApplicationViewSet(viewsets.ModelViewSet):
-    # ... (оставляем без изменений, как было)
     serializer_class = ApplicationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -36,15 +37,22 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         return Application.objects.all().select_related('topic', 'student')
 
     def perform_create(self, serializer):
+        user = self.request.user
+        
+        # Проверка: есть ли у студента уже активная ВКР?
+        if Thesis.objects.filter(student=user).exists():
+            raise permissions.PermissionDenied('У вас уже есть активная ВКР. Вы не можете подать новую заявку.')
+            
         topic = serializer.validated_data['topic']
         if topic.status != Topic.Status.FREE:
             raise permissions.PermissionDenied('Тема уже занята или на согласовании.')
-        app = serializer.save(student=self.request.user, status=Application.Status.SUBMITTED)
+            
+        app = serializer.save(student=user, status=Application.Status.SUBMITTED)
         topic.status = Topic.Status.PENDING
         topic.save(update_fields=['status'])
-        log_status('application', app.id, '', app.status, self.request.user)
-        log_action(self.request.user, 'Подал(а) заявку на тему', 'application', app.id)
-        notify(topic.supervisor, Notification.Type.APPLICATION, f'{self.request.user.get_full_name() or self.request.user.username} подал(а) заявку на тему «{topic.title}».', link='/supervisor/inbox')
+        log_status('application', app.id, '', app.status, user)
+        log_action(user, 'Подал(а) заявку на тему', 'application', app.id)
+        notify(topic.supervisor, Notification.Type.APPLICATION, f'{user.get_full_name() or user.username} подал(а) заявку на тему «{topic.title}».', link='/supervisor/inbox')
 
     @action(detail=False, methods=['get'])
     def my(self, request):
@@ -57,7 +65,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
     def inbox(self, request):
         if request.user.role != 'supervisor':
             return Response({'detail': 'Только для руководителей.'}, status=403)
-        qs = self.get_queryset().filter(status=Application.Status.SUBMITTED)
+        qs = self.get_queryset()
         return Response(self.get_serializer(qs, many=True).data)
 
     @action(detail=True, methods=['patch'])
@@ -139,11 +147,11 @@ class ThesisViewSet(viewsets.ReadOnlyModelViewSet):
 class StageViewSet(viewsets.ModelViewSet):
     serializer_class = StageSerializer
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = (MultiPartParser, FormParser) # Для загрузки файлов
+    parser_classes = (MultiPartParser, FormParser)
 
     def get_queryset(self):
         user = self.request.user
-        qs = Stage.objects.select_related('thesis', 'thesis__student', 'thesis__supervisor')
+        qs = Stage.objects.select_related('thesis', 'thesis__student', 'thesis__supervisor').prefetch_related('files', 'reviews')
         if user.role == 'student':
             return qs.filter(thesis__student=user)
         if user.role == 'supervisor':
@@ -152,9 +160,7 @@ class StageViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def upload(self, request, pk=None):
-        """Загрузка файла на этап."""
         stage = self.get_object()
-        # Студент может грузить только на свои этапы
         if request.user.role == 'student' and stage.thesis.student != request.user:
             return Response({'detail': 'Нет прав.'}, status=403)
 
@@ -163,42 +169,57 @@ class StageViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Файл не передан.'}, status=400)
 
         file_name = request.data.get('file_name', file_obj.name)
+        File.objects.create(stage=stage, file=file_obj, file_name=file_name, uploaded_by=request.user)
         
-        # Создаем запись файла
-        File.objects.create(
-            stage=stage,
-            file=file_obj,
-            file_name=file_name,
-            uploaded_by=request.user
-        )
-        
-        # Меняем статус этапа на "На проверке"
+        # Меняем статус на "На проверке"
         stage.status = Stage.Status.SUBMITTED
         stage.save()
         
-        # Уведомляем руководителя
-        notify(
-            stage.thesis.supervisor,
-            Notification.Type.STAGE,
-            f'{request.user.get_full_name() or request.user.username} загрузил(а) файл на этап «{stage.get_type_display()}».',
-            link='/supervisor/inbox'
-        )
-        
-        return Response({'status': 'ok', 'message': 'Файл загружен, этап на проверке.'})
+        notify(stage.thesis.supervisor, Notification.Type.STAGE, f'{request.user.get_full_name() or request.user.username} загрузил(а) файл на этап «{stage.get_type_display()}».', link='/supervisor/inbox')
+        return Response({'status': 'ok', 'message': 'Файл загружен.'})
 
-    @action(detail=True, methods=['get'])
-    def reviews(self, request, pk=None):
-        """Список отзывов для этапа."""
+    @action(detail=True, methods=['post'])
+    @transaction.atomic
+    def review(self, request, pk=None):
+        """Создание отзыва руководителем."""
         stage = self.get_object()
-        reviews = stage.reviews.all().order_by('-created_at')
-        # Возвращаем простой список
-        data = [
-            {
-                'id': r.id,
-                'text': r.text,
-                'decision': r.decision,
-                'created_at': r.created_at,
-                'supervisor': r.supervisor.get_full_name() or r.supervisor.username
-            } for r in reviews
-        ]
-        return Response(data)
+        if request.user.role not in ('supervisor', 'admin'):
+            return Response({'detail': 'Только для руководителей.'}, status=403)
+
+        decision = request.data.get('decision')
+        text = request.data.get('text')
+
+        if not decision or not text:
+            return Response({'detail': 'Нужны decision и text.'}, status=400)
+
+        review = Review.objects.create(stage=stage, supervisor=request.user, decision=decision, text=text)
+
+        old_status = stage.status
+        if decision == 'approved':
+            stage.status = Stage.Status.APPROVED
+            next_stage = stage.thesis.stages.filter(order_index__gt=stage.order_index, status=Stage.Status.NOT_STARTED).first()
+            if next_stage:
+                next_stage.status = Stage.Status.IN_PROGRESS
+                next_stage.save()
+        else:
+            stage.status = Stage.Status.NEEDS_REVISION
+        
+        stage.save()
+        log_status('stage', stage.id, old_status, stage.status, request.user, text)
+        log_action(request.user, f'Оставил(а) отзыв на этап {stage.get_type_display()}', 'stage', stage.id)
+        notify(stage.thesis.student, Notification.Type.REVIEW, f'Руководитель оставил(а) отзыв на этап «{stage.get_type_display()}»: {decision}', link='/workspace')
+
+        return Response(ReviewSerializer(review).data, status=201)
+
+    @action(detail=True, methods=['get'], url_path='files/(?P<file_id>[^/.]+)/download')
+    def download_file(self, request, pk=None, file_id=None):
+        """Принудительное скачивание файла этапа."""
+        stage = self.get_object()
+        file_obj = get_object_or_404(File, id=file_id, stage=stage)
+
+        response = FileResponse(
+            file_obj.file.open('rb'),
+            as_attachment=True,
+            filename=file_obj.file_name
+        )
+        return response
