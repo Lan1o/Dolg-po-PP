@@ -5,32 +5,25 @@ from django.utils import timezone
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 
 from apps.catalog.models import Topic
 from apps.notifications.models import Notification
 from apps.notifications.services import notify, log_status, log_action
 
-from .models import Application, Thesis, Stage
-from .serializers import ApplicationSerializer, ThesisSerializer, StageSerializer
-
+from .models import Application, Thesis, Stage, File, Review
+from .serializers import (
+    ApplicationSerializer, ThesisSerializer, StageSerializer
+)
 
 STAGE_ORDER = [
-    Stage.Type.PLAN,
-    Stage.Type.CHAPTER1,
-    Stage.Type.CHAPTER2,
-    Stage.Type.FULL_TEXT,
-    Stage.Type.NORMCONTROL,
-    Stage.Type.PREDEFENSE,
-    Stage.Type.DEFENSE,
+    Stage.Type.PLAN, Stage.Type.CHAPTER1, Stage.Type.CHAPTER2,
+    Stage.Type.FULL_TEXT, Stage.Type.NORMCONTROL, Stage.Type.PREDEFENSE, Stage.Type.DEFENSE
 ]
 
 
 class ApplicationViewSet(viewsets.ModelViewSet):
-    """
-    Заявки на темы:
-    - student: создаёт заявку, видит свои (my)
-    - supervisor: видит инбокс (inbox), одобряет/отклоняет
-    """
+    # ... (оставляем без изменений, как было)
     serializer_class = ApplicationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -51,12 +44,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         topic.save(update_fields=['status'])
         log_status('application', app.id, '', app.status, self.request.user)
         log_action(self.request.user, 'Подал(а) заявку на тему', 'application', app.id)
-        notify(
-            topic.supervisor,
-            Notification.Type.APPLICATION,
-            f'{self.request.user.get_full_name() or self.request.user.username} подал(а) заявку на тему «{topic.title}».',
-            link='/supervisor/inbox',
-        )
+        notify(topic.supervisor, Notification.Type.APPLICATION, f'{self.request.user.get_full_name() or self.request.user.username} подал(а) заявку на тему «{topic.title}».', link='/supervisor/inbox')
 
     @action(detail=False, methods=['get'])
     def my(self, request):
@@ -91,31 +79,13 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         topic.status = Topic.Status.OCCUPIED
         topic.save(update_fields=['status'])
 
-        # Создаём ВКР + 7 этапов
-        thesis = Thesis.objects.create(
-            student=app.student,
-            topic=topic,
-            supervisor=request.user if request.user.role == 'supervisor' else topic.supervisor,
-            status=Thesis.Status.ACTIVE,
-        )
-        base_date = date.today()
+        thesis = Thesis.objects.create(student=app.student, topic=topic, supervisor=request.user if request.user.role == 'supervisor' else topic.supervisor, status=Thesis.Status.ACTIVE)
         for i, stage_type in enumerate(STAGE_ORDER, start=1):
-            Stage.objects.create(
-                thesis=thesis,
-                type=stage_type,
-                status=Stage.Status.NOT_STARTED,
-                deadline=base_date + timedelta(days=21 * i),
-                order_index=i,
-            )
+            Stage.objects.create(thesis=thesis, type=stage_type, status=Stage.Status.NOT_STARTED, deadline=date.today() + timedelta(days=21 * i), order_index=i)
 
         log_status('application', app.id, old_status, app.status, request.user, app.supervisor_comment)
         log_action(request.user, 'Одобрил(а) заявку', 'application', app.id)
-        notify(
-            app.student,
-            Notification.Type.APPLICATION,
-            f'Ваша заявка на тему «{topic.title}» одобрена. Работа создана.',
-            link='/workspace',
-        )
+        notify(app.student, Notification.Type.APPLICATION, f'Ваша заявка на тему «{topic.title}» одобрена.', link='/workspace')
         return Response(self.get_serializer(app).data)
 
     @action(detail=True, methods=['patch'])
@@ -140,17 +110,11 @@ class ApplicationViewSet(viewsets.ModelViewSet):
 
         log_status('application', app.id, old_status, app.status, request.user, app.supervisor_comment)
         log_action(request.user, 'Отклонил(а) заявку', 'application', app.id)
-        notify(
-            app.student,
-            Notification.Type.APPLICATION,
-            f'Ваша заявка на тему «{topic.title}» отклонена: {app.supervisor_comment}',
-            link='/catalog',
-        )
+        notify(app.student, Notification.Type.APPLICATION, f'Ваша заявка на тему «{topic.title}» отклонена.', link='/catalog')
         return Response(self.get_serializer(app).data)
 
 
 class ThesisViewSet(viewsets.ReadOnlyModelViewSet):
-    """Просмотр ВКР: студент видит свою, руководитель — своих студентов."""
     serializer_class = ThesisSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -173,9 +137,9 @@ class ThesisViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class StageViewSet(viewsets.ModelViewSet):
-    """Этапы ВКР: смена статуса, список."""
     serializer_class = StageSerializer
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser) # Для загрузки файлов
 
     def get_queryset(self):
         user = self.request.user
@@ -185,3 +149,56 @@ class StageViewSet(viewsets.ModelViewSet):
         if user.role == 'supervisor':
             return qs.filter(thesis__supervisor=user)
         return qs
+
+    @action(detail=True, methods=['post'])
+    def upload(self, request, pk=None):
+        """Загрузка файла на этап."""
+        stage = self.get_object()
+        # Студент может грузить только на свои этапы
+        if request.user.role == 'student' and stage.thesis.student != request.user:
+            return Response({'detail': 'Нет прав.'}, status=403)
+
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({'detail': 'Файл не передан.'}, status=400)
+
+        file_name = request.data.get('file_name', file_obj.name)
+        
+        # Создаем запись файла
+        File.objects.create(
+            stage=stage,
+            file=file_obj,
+            file_name=file_name,
+            uploaded_by=request.user
+        )
+        
+        # Меняем статус этапа на "На проверке"
+        stage.status = Stage.Status.SUBMITTED
+        stage.save()
+        
+        # Уведомляем руководителя
+        notify(
+            stage.thesis.supervisor,
+            Notification.Type.STAGE,
+            f'{request.user.get_full_name() or request.user.username} загрузил(а) файл на этап «{stage.get_type_display()}».',
+            link='/supervisor/inbox'
+        )
+        
+        return Response({'status': 'ok', 'message': 'Файл загружен, этап на проверке.'})
+
+    @action(detail=True, methods=['get'])
+    def reviews(self, request, pk=None):
+        """Список отзывов для этапа."""
+        stage = self.get_object()
+        reviews = stage.reviews.all().order_by('-created_at')
+        # Возвращаем простой список
+        data = [
+            {
+                'id': r.id,
+                'text': r.text,
+                'decision': r.decision,
+                'created_at': r.created_at,
+                'supervisor': r.supervisor.get_full_name() or r.supervisor.username
+            } for r in reviews
+        ]
+        return Response(data)
