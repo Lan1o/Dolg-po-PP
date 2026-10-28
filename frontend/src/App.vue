@@ -14,16 +14,27 @@
 
           <!-- Ссылки для руководителя -->
           <template v-if="userRole === 'supervisor'">
-            <router-link class="nav-link text-light me-3" to="/supervisor/inbox">Инбокс (заявки и проверки)</router-link>
+            <router-link class="nav-link text-light me-3" to="/supervisor/inbox">Инбокс</router-link>
           </template>
 
           <!-- Ссылки для админа -->
           <template v-if="userRole === 'admin'">
             <router-link class="nav-link text-light me-3" to="/catalog">Каталог тем</router-link>
-            <a class="nav-link text-light me-3" href="http://localhost:8000/admin/" target="_blank">Админка Django</a>
+            <a class="nav-link text-light me-3" href="http://localhost:8000/admin/" target="_blank">Админка</a>
           </template>
+
+          <!-- Колокольчик уведомлений -->
+          <router-link to="/notifications" class="btn btn-outline-light btn-sm position-relative me-3">
+            🔔
+            <span 
+              v-if="unreadCount > 0" 
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+            >
+              {{ unreadCount }}
+            </span>
+          </router-link>
           
-          <button @click="handleLogout" class="btn btn-outline-light btn-sm ms-3">Выйти</button>
+          <button @click="handleLogout" class="btn btn-outline-light btn-sm">Выйти</button>
         </div>
       </div>
     </nav>
@@ -35,25 +46,47 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { auth, api } from './api'
 
 const router = useRouter()
 const isAuth = ref(false)
 const userRole = ref('')
+const unreadCount = ref(0)
+
+// Функция получения количества непрочитанных
+const fetchUnreadCount = async () => {
+  if (!isAuth.value) return
+  try {
+    const data = await api('/notifications/unread_count/')
+    unreadCount.value = data.count
+  } catch (error) {
+    console.error('Не удалось получить счетчик', error)
+  }
+}
+
+// Слушаем событие от страницы уведомлений, чтобы обновить счетчик
+const handleUpdateEvent = () => {
+  fetchUnreadCount()
+}
 
 onMounted(async () => {
   isAuth.value = auth.isAuthenticated()
   if (isAuth.value) {
     try {
-      // Получаем профиль пользователя, чтобы узнать его роль
       const user = await api('/auth/me')
       userRole.value = user.role
+      await fetchUnreadCount()
     } catch (error) {
-      console.error('Не удалось загрузить профиль', error)
+      console.error(error)
     }
   }
+  window.addEventListener('update-unread-count', handleUpdateEvent)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('update-unread-count', handleUpdateEvent)
 })
 
 const handleLogout = () => {

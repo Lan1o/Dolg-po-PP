@@ -11,11 +11,7 @@ from drf_spectacular.views import (
 
 
 def health(request):
-    return JsonResponse({
-        'status': 'ok',
-        'service': 'CampusThesis API',
-        'version': '0.1.0',
-    })
+    return JsonResponse({'status': 'ok', 'service': 'CampusThesis API', 'version': '0.1.0'})
 
 
 urlpatterns = [
@@ -24,6 +20,7 @@ urlpatterns = [
     path('api/auth/', include('apps.accounts.urls')),
     path('api/', include('apps.catalog.urls')),
     path('api/', include('apps.workflow.urls')),
+    path('api/notifications/', include('apps.notifications.urls')), # <-- Новое
 
     path('api/schema', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),

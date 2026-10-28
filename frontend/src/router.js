@@ -5,10 +5,9 @@ import Login from './views/Login.vue'
 import Catalog from './views/Catalog.vue'
 import MyApplications from './views/MyApplications.vue'
 import Workspace from './views/Workspace.vue'
-
-// Новые страницы для руководителя
 import SupervisorInbox from './views/SupervisorInbox.vue'
 import ReviewStage from './views/ReviewStage.vue'
+import Notifications from './views/Notifications.vue' // <-- Новое
 
 const routes = [
   { path: '/', redirect: '/catalog' },
@@ -16,10 +15,9 @@ const routes = [
   { path: '/catalog', component: Catalog, meta: { requiresAuth: true } },
   { path: '/my-applications', component: MyApplications, meta: { requiresAuth: true } },
   { path: '/workspace', component: Workspace, meta: { requiresAuth: true } },
-  
-  // Роуты руководителя
   { path: '/supervisor/inbox', component: SupervisorInbox, meta: { requiresAuth: true } },
   { path: '/supervisor/stage/:id', component: ReviewStage, meta: { requiresAuth: true } },
+  { path: '/notifications', component: Notifications, meta: { requiresAuth: true } }, 
 ]
 
 const router = createRouter({
