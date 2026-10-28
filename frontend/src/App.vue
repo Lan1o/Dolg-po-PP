@@ -11,38 +11,44 @@
 
         <!-- Сворачиваемое меню -->
         <div class="collapse navbar-collapse" id="navbarNav">
-          <div class="navbar-nav ms-auto align-items-lg-center">
+          <ul class="navbar-nav ms-auto align-items-lg-center">
             <!-- Ссылки для студента -->
             <template v-if="userRole === 'student'">
-              <router-link class="nav-link text-light me-lg-3" to="/catalog">Каталог тем</router-link>
-              <router-link class="nav-link text-light me-lg-3" to="/my-applications">Мои заявки</router-link>
-              <router-link class="nav-link text-light me-lg-3" to="/workspace">Моя ВКР</router-link>
+              <li class="nav-item"><router-link class="nav-link" to="/catalog">Каталог тем</router-link></li>
+              <li class="nav-item"><router-link class="nav-link" to="/my-applications">Мои заявки</router-link></li>
+              <li class="nav-item"><router-link class="nav-link" to="/workspace">Моя ВКР</router-link></li>
             </template>
 
             <!-- Ссылки для руководителя -->
             <template v-if="userRole === 'supervisor'">
-              <router-link class="nav-link text-light me-lg-3" to="/supervisor/inbox">Инбокс</router-link>
+              <li class="nav-item"><router-link class="nav-link" to="/supervisor/inbox">Инбокс</router-link></li>
             </template>
 
             <!-- Ссылки для админа -->
             <template v-if="userRole === 'admin'">
-              <router-link class="nav-link text-light me-lg-3" to="/catalog">Каталог тем</router-link>
-              <a class="nav-link text-light me-lg-3" href="http://localhost:8000/admin/" target="_blank">Админка</a>
+              <li class="nav-item"><router-link class="nav-link" to="/catalog">Каталог тем</router-link></li>
+              <li class="nav-item"><a class="nav-link" href="http://localhost:8000/admin/" target="_blank">Админка</a></li>
             </template>
 
             <!-- Колокольчик уведомлений -->
-            <router-link to="/notifications" class="nav-link text-light position-relative me-lg-3 mt-2 mt-lg-0">
-              <span class="fs-5">🔔</span>
-              <span 
-                v-if="unreadCount > 0" 
-                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-              >
-                {{ unreadCount }}
-              </span>
-            </router-link>
-            
-            <button @click="handleLogout" class="btn btn-outline-light btn-sm mt-3 mt-lg-0 ms-lg-3">Выйти</button>
-          </div>
+            <li class="nav-item position-relative me-lg-3 mt-2 mt-lg-0">
+              <router-link to="/notifications" class="nav-link position-relative">
+                <span class="fs-5">🔔</span>
+                <span 
+                  v-if="unreadCount > 0" 
+                  class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                  style="font-size: 0.6rem;"
+                >
+                  {{ unreadCount }}
+                </span>
+              </router-link>
+            </li>
+
+            <!-- Кнопка Выйти -->
+            <li class="nav-item mt-2 mt-lg-0">
+              <button @click="handleLogout" class="btn btn-outline-light btn-sm ms-lg-2">Выйти</button>
+            </li>
+          </ul>
         </div>
       </div>
     </nav>
