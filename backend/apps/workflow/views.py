@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from apps.catalog.models import Topic
 from apps.notifications.models import Notification
@@ -147,7 +147,7 @@ class ThesisViewSet(viewsets.ReadOnlyModelViewSet):
 class StageViewSet(viewsets.ModelViewSet):
     serializer_class = StageSerializer
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = (MultiPartParser, FormParser)
+    parser_classes = (MultiPartParser, FormParser, JSONParser) # <-- ИСПРАВЛЕНО ЗДЕСЬ
 
     def get_queryset(self):
         user = self.request.user
