@@ -4,37 +4,45 @@
       <div class="container">
         <router-link class="navbar-brand" to="/">CampusThesis</router-link>
         
-        <div class="d-flex align-items-center">
-          <!-- Ссылки для студента -->
-          <template v-if="userRole === 'student'">
-            <router-link class="nav-link text-light me-3" to="/catalog">Каталог тем</router-link>
-            <router-link class="nav-link text-light me-3" to="/my-applications">Мои заявки</router-link>
-            <router-link class="nav-link text-light me-3" to="/workspace">Моя ВКР</router-link>
-          </template>
+        <!-- Кнопка-бургер для мобильных -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
 
-          <!-- Ссылки для руководителя -->
-          <template v-if="userRole === 'supervisor'">
-            <router-link class="nav-link text-light me-3" to="/supervisor/inbox">Инбокс</router-link>
-          </template>
+        <!-- Сворачиваемое меню -->
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <div class="navbar-nav ms-auto align-items-lg-center">
+            <!-- Ссылки для студента -->
+            <template v-if="userRole === 'student'">
+              <router-link class="nav-link text-light me-lg-3" to="/catalog">Каталог тем</router-link>
+              <router-link class="nav-link text-light me-lg-3" to="/my-applications">Мои заявки</router-link>
+              <router-link class="nav-link text-light me-lg-3" to="/workspace">Моя ВКР</router-link>
+            </template>
 
-          <!-- Ссылки для админа -->
-          <template v-if="userRole === 'admin'">
-            <router-link class="nav-link text-light me-3" to="/catalog">Каталог тем</router-link>
-            <a class="nav-link text-light me-3" href="http://localhost:8000/admin/" target="_blank">Админка</a>
-          </template>
+            <!-- Ссылки для руководителя -->
+            <template v-if="userRole === 'supervisor'">
+              <router-link class="nav-link text-light me-lg-3" to="/supervisor/inbox">Инбокс</router-link>
+            </template>
 
-          <!-- Колокольчик уведомлений -->
-          <router-link to="/notifications" class="btn btn-outline-light btn-sm position-relative me-3">
-            🔔
-            <span 
-              v-if="unreadCount > 0" 
-              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-            >
-              {{ unreadCount }}
-            </span>
-          </router-link>
-          
-          <button @click="handleLogout" class="btn btn-outline-light btn-sm">Выйти</button>
+            <!-- Ссылки для админа -->
+            <template v-if="userRole === 'admin'">
+              <router-link class="nav-link text-light me-lg-3" to="/catalog">Каталог тем</router-link>
+              <a class="nav-link text-light me-lg-3" href="http://localhost:8000/admin/" target="_blank">Админка</a>
+            </template>
+
+            <!-- Колокольчик уведомлений -->
+            <router-link to="/notifications" class="nav-link text-light position-relative me-lg-3 mt-2 mt-lg-0">
+              <span class="fs-5">🔔</span>
+              <span 
+                v-if="unreadCount > 0" 
+                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+              >
+                {{ unreadCount }}
+              </span>
+            </router-link>
+            
+            <button @click="handleLogout" class="btn btn-outline-light btn-sm mt-3 mt-lg-0 ms-lg-3">Выйти</button>
+          </div>
         </div>
       </div>
     </nav>
@@ -55,7 +63,6 @@ const isAuth = ref(false)
 const userRole = ref('')
 const unreadCount = ref(0)
 
-// Функция получения количества непрочитанных
 const fetchUnreadCount = async () => {
   if (!isAuth.value) return
   try {
@@ -66,7 +73,6 @@ const fetchUnreadCount = async () => {
   }
 }
 
-// Слушаем событие от страницы уведомлений, чтобы обновить счетчик
 const handleUpdateEvent = () => {
   fetchUnreadCount()
 }
