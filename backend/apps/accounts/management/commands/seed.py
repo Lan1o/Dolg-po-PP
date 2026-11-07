@@ -90,7 +90,7 @@ class Command(BaseCommand):
 
     def _create_students(self):
         data = [
-            ('smirnov', 'Андрей', 'Смирнов', 'smirnov@campus.ru', 'ИРИТ-РТФ-41'),
+            ('voynov', 'Егор', 'Войнов', 'smirnov@campus.ru', 'ИРИТ-РТФ-41'),
             ('volkova', 'Анна', 'Волкова', 'volkova@campus.ru', 'ИРИТ-РТФ-41'),
             ('kozlov', 'Никита', 'Козлов', 'kozlov@campus.ru', 'ИРИТ-РТФ-42'),
             ('lebedeva', 'Софья', 'Лебедева', 'lebedeva@campus.ru', 'ИРИТ-РТФ-42'),

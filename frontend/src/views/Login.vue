@@ -3,7 +3,7 @@
     <div class="col-md-5">
       <div class="card shadow">
         <div class="card-body p-4">
-          <h3 class="text-center mb-4">Вход в CampusThesis</h3>
+          <h3 class="text-center mb-4">Вход в УниверВКР</h3>
           
           <form @submit.prevent="handleLogin">
             <div class="mb-3">
