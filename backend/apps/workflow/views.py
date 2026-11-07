@@ -5,13 +5,13 @@ from django.utils import timezone
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, permissions, status
-from rest_framework.exceptions import PermissionDenied
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.exceptions import PermissionDenied
 
 from apps.catalog.models import Topic
-from apps.notifications.models import Notification
+from apps.notifications.models import Notification, ActionLog
 from apps.notifications.services import notify, log_status, log_action
 
 from .models import Application, Thesis, Stage, File, Review
@@ -40,7 +40,6 @@ class ApplicationViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         
-        # Проверка: есть ли у студента уже активная ВКР?
         if Thesis.objects.filter(student=user).exists():
             raise PermissionDenied('У вас уже есть активная ВКР. Вы не можете подать новую заявку.')
             
@@ -123,7 +122,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         return Response(self.get_serializer(app).data)
 
 
-class ThesisViewSet(viewsets.ReadOnlyModelViewSet):
+class ThesisViewSet(viewsets.ModelViewSet):
     serializer_class = ThesisSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -134,6 +133,21 @@ class ThesisViewSet(viewsets.ReadOnlyModelViewSet):
         if user.role == 'supervisor':
             return Thesis.objects.filter(supervisor=user).prefetch_related('stages')
         return Thesis.objects.all().prefetch_related('stages')
+
+    def update(self, request, *args, **kwargs):
+        thesis = self.get_object()
+        
+        # Проверка прав: либо руководитель, либо сам студент
+        if request.user != thesis.supervisor and request.user != thesis.student and request.user.role != 'admin':
+            return Response({'detail': 'Нет прав на редактирование.'}, status=403)
+        
+        thesis.description = request.data.get('description', thesis.description)
+        thesis.relevance = request.data.get('relevance', thesis.relevance)
+        thesis.goal = request.data.get('goal', thesis.goal)
+        thesis.expected_result = request.data.get('expected_result', thesis.expected_result)
+        thesis.save()
+        
+        return Response(self.get_serializer(thesis).data)
 
     @action(detail=False, methods=['get'])
     def my(self, request):
@@ -172,7 +186,6 @@ class StageViewSet(viewsets.ModelViewSet):
         file_name = request.data.get('file_name', file_obj.name)
         File.objects.create(stage=stage, file=file_obj, file_name=file_name, uploaded_by=request.user)
         
-        # Меняем статус на "На проверке"
         stage.status = Stage.Status.SUBMITTED
         stage.save()
         
@@ -182,7 +195,6 @@ class StageViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     @transaction.atomic
     def review(self, request, pk=None):
-        """Создание отзыва руководителем."""
         stage = self.get_object()
         if request.user.role not in ('supervisor', 'admin'):
             return Response({'detail': 'Только для руководителей.'}, status=403)
@@ -214,7 +226,6 @@ class StageViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='files/(?P<file_id>[^/.]+)/download')
     def download_file(self, request, pk=None, file_id=None):
-        """Принудительное скачивание файла этапа."""
         stage = self.get_object()
         file_obj = get_object_or_404(File, id=file_id, stage=stage)
 
@@ -224,3 +235,44 @@ class StageViewSet(viewsets.ModelViewSet):
             filename=file_obj.file_name
         )
         return response
+
+    @action(detail=True, methods=['get'])
+    def reviews(self, request, pk=None):
+        stage = self.get_object()
+        reviews = stage.reviews.all().order_by('-created_at')
+        data = [
+            {
+                'id': r.id,
+                'text': r.text,
+                'decision': r.decision,
+                'created_at': r.created_at,
+                'supervisor': r.supervisor.get_full_name() or r.supervisor.username
+            } for r in reviews
+        ]
+        return Response(data)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def student_history(request, thesis_id):
+    """Получение истории действий по ВКР (доступно руководителю и самому студенту)."""
+    try:
+        if request.user.role == 'supervisor':
+            thesis = Thesis.objects.get(id=thesis_id, supervisor=request.user)
+        else:
+            thesis = Thesis.objects.get(id=thesis_id, student=request.user)
+    except Thesis.DoesNotExist:
+        return Response({'detail': 'ВКР не найдена или нет прав.'}, status=404)
+
+    logs = ActionLog.objects.filter(user=thesis.student).order_by('-created_at')
+    
+    data = [
+        {
+            'id': log.id,
+            'action': log.action,
+            'entity_type': log.entity_type,
+            'entity_id': log.entity_id,
+            'created_at': log.created_at
+        } for log in logs
+    ]
+    return Response(data)

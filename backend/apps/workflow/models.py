@@ -93,6 +93,25 @@ class Thesis(models.Model):
         default=Status.ACTIVE,
         verbose_name='Статус',
     )
+    
+    # Новые поля для деталей работы
+    description = models.TextField(
+        blank=True,
+        verbose_name='Описание работы',
+    )
+    relevance = models.TextField(
+        blank=True,
+        verbose_name='Актуальность',
+    )
+    goal = models.TextField(
+        blank=True,
+        verbose_name='Цель работы',
+    )
+    expected_result = models.TextField(
+        blank=True,
+        verbose_name='Ожидаемый результат',
+    )
+    
     created_at = models.DateTimeField(
         auto_now_add=True,
         verbose_name='Создана',

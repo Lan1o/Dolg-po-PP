@@ -1,11 +1,11 @@
 from rest_framework import serializers
+
 from apps.catalog.models import Topic
 from apps.catalog.serializers import TopicSerializer
 from .models import Application, Thesis, Stage, File, Review
 
 
 class FileSerializer(serializers.ModelSerializer):
-    # Добавляем поле file_url, которое будет отдавать полный путь
     file_url = serializers.SerializerMethodField()
 
     class Meta:
@@ -88,6 +88,7 @@ class ThesisSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'student', 'student_name', 'topic', 'topic_title',
             'supervisor', 'supervisor_name', 'status', 'status_display',
+            'description', 'relevance', 'goal', 'expected_result',
             'stages', 'created_at',
         )
 
