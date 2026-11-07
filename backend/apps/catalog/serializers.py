@@ -21,6 +21,7 @@ class TopicSerializer(serializers.ModelSerializer):
     supervisor_id = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(role='supervisor'),
         source='supervisor', write_only=True,
+        required=False  # <-- ИСПРАВЛЕНИЕ: делаем необязательным
     )
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     applications_count = serializers.SerializerMethodField()
