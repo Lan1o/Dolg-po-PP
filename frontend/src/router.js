@@ -9,6 +9,9 @@ import SupervisorInbox from './views/SupervisorInbox.vue'
 import ReviewStage from './views/ReviewStage.vue'
 import Notifications from './views/Notifications.vue'
 import SupervisorTopics from './views/SupervisorTopics.vue'
+import AdminUsers from './views/AdminUsers.vue'
+import SupervisorStudents from './views/SupervisorStudents.vue'
+import SupervisorStudentDetail from './views/SupervisorStudentDetail.vue'
 
 const routes = [
   { path: '/', redirect: '/catalog' },
@@ -19,6 +22,9 @@ const routes = [
   { path: '/supervisor/inbox', component: SupervisorInbox, meta: { requiresAuth: true } },
   { path: '/supervisor/stage/:id', component: ReviewStage, meta: { requiresAuth: true } },
   { path: '/supervisor/topics', component: SupervisorTopics, meta: { requiresAuth: true } },
+  { path: '/supervisor/students', component: SupervisorStudents, meta: { requiresAuth: true } },
+  { path: '/supervisor/student/:id', component: SupervisorStudentDetail, meta: { requiresAuth: true } },
+  { path: '/admin/users', component: AdminUsers, meta: { requiresAuth: true } },
   { path: '/notifications', component: Notifications, meta: { requiresAuth: true } },
 ]
 

@@ -21,11 +21,13 @@
             <template v-if="userRole === 'supervisor'">
               <li class="nav-item"><router-link class="nav-link" to="/supervisor/inbox">Инбокс</router-link></li>
               <li class="nav-item"><router-link class="nav-link" to="/supervisor/topics">Мои темы</router-link></li>
+              <li class="nav-item"><router-link class="nav-link" to="/supervisor/students">Студенты</router-link></li>
             </template>
 
             <!-- Ссылки для админа -->
             <template v-if="userRole === 'admin'">
               <li class="nav-item"><router-link class="nav-link" to="/catalog">Каталог тем</router-link></li>
+              <li class="nav-item"><router-link class="nav-link" to="/admin/users">Пользователи</router-link></li>
               <li class="nav-item"><a class="nav-link" href="http://localhost:8000/admin/" target="_blank">Админка</a></li>
             </template>
 
