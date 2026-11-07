@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, permissions, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -41,11 +42,11 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         
         # Проверка: есть ли у студента уже активная ВКР?
         if Thesis.objects.filter(student=user).exists():
-            raise permissions.PermissionDenied('У вас уже есть активная ВКР. Вы не можете подать новую заявку.')
+            raise PermissionDenied('У вас уже есть активная ВКР. Вы не можете подать новую заявку.')
             
         topic = serializer.validated_data['topic']
         if topic.status != Topic.Status.FREE:
-            raise permissions.PermissionDenied('Тема уже занята или на согласовании.')
+            raise PermissionDenied('Тема уже занята или на согласовании.')
             
         app = serializer.save(student=user, status=Application.Status.SUBMITTED)
         topic.status = Topic.Status.PENDING
@@ -147,7 +148,7 @@ class ThesisViewSet(viewsets.ReadOnlyModelViewSet):
 class StageViewSet(viewsets.ModelViewSet):
     serializer_class = StageSerializer
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = (MultiPartParser, FormParser, JSONParser) # <-- ИСПРАВЛЕНО ЗДЕСЬ
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def get_queryset(self):
         user = self.request.user
