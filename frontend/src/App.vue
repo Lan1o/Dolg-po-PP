@@ -4,12 +4,10 @@
       <div class="container">
         <router-link class="navbar-brand" to="/">CampusThesis</router-link>
         
-        <!-- Кнопка-бургер для мобильных -->
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
           <span class="navbar-toggler-icon"></span>
         </button>
 
-        <!-- Сворачиваемое меню -->
         <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav ms-auto align-items-lg-center">
             <!-- Ссылки для студента -->
@@ -22,6 +20,7 @@
             <!-- Ссылки для руководителя -->
             <template v-if="userRole === 'supervisor'">
               <li class="nav-item"><router-link class="nav-link" to="/supervisor/inbox">Инбокс</router-link></li>
+              <li class="nav-item"><router-link class="nav-link" to="/supervisor/topics">Мои темы</router-link></li>
             </template>
 
             <!-- Ссылки для админа -->
@@ -44,7 +43,6 @@
               </router-link>
             </li>
 
-            <!-- Кнопка Выйти -->
             <li class="nav-item mt-2 mt-lg-0">
               <button @click="handleLogout" class="btn btn-outline-light btn-sm ms-lg-2">Выйти</button>
             </li>

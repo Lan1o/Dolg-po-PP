@@ -37,6 +37,10 @@ class TopicViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Topic.objects.select_related('direction', 'supervisor').all()
 
+        # Фильтр для личного кабинета руководителя (страница "Мои темы")
+        if self.request.query_params.get('my') == 'true' and self.request.user.is_authenticated and self.request.user.role == 'supervisor':
+            qs = qs.filter(supervisor=self.request.user)
+
         q = self.request.query_params.get('q')
         if q:
             qs = qs.filter(
@@ -53,15 +57,22 @@ class TopicViewSet(viewsets.ModelViewSet):
         if supervisor:
             qs = qs.filter(supervisor_id=supervisor)
 
-        status = self.request.query_params.get('status')
-        if status:
-            qs = qs.filter(status=status)
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            qs = qs.filter(status=status_param)
 
         tags = self.request.query_params.get('tags')
         if tags:
             qs = qs.filter(tags__icontains=tags)
 
         return qs
+
+    def perform_create(self, serializer):
+        # При создании темы руководителем, автоматически привязываем его как автора
+        if self.request.user.role == 'supervisor':
+            serializer.save(supervisor=self.request.user)
+        else:
+            serializer.save()
 
     @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
     def filters(self, request):

@@ -7,7 +7,8 @@ import MyApplications from './views/MyApplications.vue'
 import Workspace from './views/Workspace.vue'
 import SupervisorInbox from './views/SupervisorInbox.vue'
 import ReviewStage from './views/ReviewStage.vue'
-import Notifications from './views/Notifications.vue' // <-- Новое
+import Notifications from './views/Notifications.vue'
+import SupervisorTopics from './views/SupervisorTopics.vue'
 
 const routes = [
   { path: '/', redirect: '/catalog' },
@@ -17,7 +18,8 @@ const routes = [
   { path: '/workspace', component: Workspace, meta: { requiresAuth: true } },
   { path: '/supervisor/inbox', component: SupervisorInbox, meta: { requiresAuth: true } },
   { path: '/supervisor/stage/:id', component: ReviewStage, meta: { requiresAuth: true } },
-  { path: '/notifications', component: Notifications, meta: { requiresAuth: true } }, 
+  { path: '/supervisor/topics', component: SupervisorTopics, meta: { requiresAuth: true } },
+  { path: '/notifications', component: Notifications, meta: { requiresAuth: true } },
 ]
 
 const router = createRouter({
